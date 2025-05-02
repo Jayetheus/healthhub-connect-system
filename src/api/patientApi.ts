@@ -15,6 +15,14 @@ api.interceptors.request.use(config => {
   return config;
 });
 
+export interface AvailableDoctors {
+  id: number;
+  name: string;
+  speciality: string;
+  phone: string;
+  email: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;
@@ -50,10 +58,17 @@ export interface AppointmentResponse {
 
 export interface Prescription {
   id: number;
-  name: string;
+  code: string;
+  medication: string;
   dosage: string;
-  frequency: string;
-  refillDate: string;
+  doctor: string;
+  pharmacist: string;
+  prescription_date: string;
+  status: string;
+  instruction: string;
+  date_filled: string;
+  refills_remaining: number;
+  date_prescribed: string;
 }
 
 export interface PatientRecord {
@@ -115,7 +130,7 @@ export const getAppointments = async (): Promise<Appointment[]> => {
 // GET prescriptions API endpoint
 export const getPrescriptions = async (): Promise<Prescription[]> => {
   try {
-    const response = await api.get<Prescription[]>('/get_prescription');
+    const response = await api.get<Prescription[]>('/get_prescriptions');
     return response.data;
   } catch (error) {
     console.error('Failed to fetch prescriptions:', error);
@@ -130,6 +145,26 @@ export const getPrescriptions = async (): Promise<Prescription[]> => {
     throw new Error('Failed to fetch prescriptions');
   }
 };
+
+// GET prescription API endpoint
+export const getPrescription = async (id: number): Promise<Prescription> => {
+  try {
+    const response = await api.get<Prescription>(`/get_prescription/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch prescription:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch prescription');
+  }
+};
+
 
 // GET patient record API endpoint
 export const getPatientRecord = async (): Promise<PatientRecord> => {
@@ -169,6 +204,36 @@ export const getPatientRecords = async (): Promise<PatientRecord[]> => {
   }
 };
 
+// GET doctor for appointment API endpoint
+export const getDoctors = async (): Promise<AvailableDoctors[]> => {
+  try {
+    const response = await api.get('/get_doctors');
+    const doctors: AvailableDoctors[] = response.data.map((doctor: any) => ({
+      id: doctor.doctor_id,
+      name: doctor.name,
+      speciality: doctor.speciality,
+      phone: doctor.phone,
+      email: doctor.email,}));
+    
+    return doctors;
+
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch doctors:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch doctors');
+  }
+};
+
+
+
 // PUT appointment cancelled
 export const cancelAppointment = async (id: number): Promise<void> => {
   try{
@@ -195,5 +260,20 @@ export const cancelAppointment = async (id: number): Promise<void> => {
 
 // POST new appointment
 export const scheduleAppointment = async(appointmentDetails) =>{
-  return null
+  try {
+    const response = await api.post<AppointmentResponse>('/schedule_appointment', appointmentDetails);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to schedule appointment:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to schedule appointment');
+  }
 }
+

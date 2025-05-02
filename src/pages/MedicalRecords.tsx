@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -10,6 +10,8 @@ import {
   CalendarDays,
   RefreshCcw,
   X,
+  Printer,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,18 +46,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { getPatientRecords } from "@/api/patientApi";
+import { getPatientRecords, PatientRecord } from "@/api/patientApi";
+import ReactToPrint from "react-to-print";
+
 
 const MedicalRecords = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [selectedRecord, setSelectedRecord] = useState<PatientRecord | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const recordsPerPage = 8;
-  const { toast } = useToast();
-  const [medicalRecordsData, setMedicalRecordsData] = useState([]);
+  const [medicalRecordsData, setMedicalRecordsData] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const recordsPerPage = 8;
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -81,10 +86,9 @@ const MedicalRecords = () => {
   const filteredRecords = medicalRecordsData.filter((record) => {
     const matchesSearch =
       record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.treatment[0].diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.treatment.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.id.toLowerCase().includes(searchTerm.toLowerCase());
+      record.treatment[0]?.diagnosis.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType =
       selectedType === "all" || record.type === selectedType;
@@ -118,14 +122,34 @@ const MedicalRecords = () => {
     }
   };
 
-  const openRecordModal = (record) => {
+  const openRecordModal = (record: MedicalRecord) => {
     setSelectedRecord(record);
     setShowModal(true);
   };
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const data = await getPatientRecords();
+      setMedicalRecordsData(data);
+      setSearchTerm("");
+      setSelectedType("all");
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Failed to refresh records:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh records",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container py-8">
-      {/* Modal */}
+      {/* Print Modal */}
       {showModal && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -139,66 +163,97 @@ const MedicalRecords = () => {
               </button>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-gray-500">Doctor</h3>
-                  <p>{selectedRecord.doctor}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Record Type</h3>
-                  <div className="flex items-center">
-                    {getRecordTypeIcon(selectedRecord.type)}
-                    <span className="ml-2">{selectedRecord.type}</span>
+            <div ref={printRef} className="p-4">
+              <div className="mb-6 border-b pb-4">
+                <h1 className="text-2xl font-bold text-center">Medical Record</h1>
+                <div className="flex justify-between mt-4">
+                  <div>
+                    <p className="font-semibold">Patient:</p>
+                    <p>John Doe</p> {/* Replace with actual patient name */}
                   </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Description</h3>
-                  <p>{selectedRecord.description}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-gray-500">Diagnosis</h3>
-                  <p>{selectedRecord.treatment[0].diagnosis}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Date</h3>
-                  <div className="flex items-center">
-                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{selectedRecord.date}</span>
+                  <div>
+                    <p className="font-semibold">Date:</p>
+                    <p>{selectedRecord.date}</p>
                   </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Details</h3>
-                  <p>{selectedRecord.details || "No additional details available"}</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-gray-500">Treatment Description</h3>
-                  <p>{selectedRecord.treatment[0].description}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Treatment Date</h3>
-                  <div className="flex items-center">
-                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{selectedRecord.treatment[0].date}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Doctor</h3>
+                    <p>{selectedRecord.doctor}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Record Type</h3>
+                    <div className="flex items-center">
+                      {getRecordTypeIcon(selectedRecord.type)}
+                      <span className="ml-2">{selectedRecord.type}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Description</h3>
+                    <p>{selectedRecord.description}</p>
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-500">Treatment Follow Up Date</h3>
-                  <div className="flex items-center">
-                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span>{selectedRecord.treatment[0].follow_up_date}</span>
+                
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Diagnosis</h3>
+                    <p>{selectedRecord.treatment[0]?.diagnosis || "N/A"}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Date</h3>
+                    <div className="flex items-center">
+                      <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span>{selectedRecord.date}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-500">Details</h3>
+                    <p>{selectedRecord.details || "No additional details available"}</p>
                   </div>
                 </div>
+
+                {selectedRecord.treatment[0] && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-500">Treatment Description</h3>
+                      <p>{selectedRecord.treatment[0].description}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-500">Treatment Date</h3>
+                      <div className="flex items-center">
+                        <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{selectedRecord.treatment[0].date}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-500">Treatment Follow Up Date</h3>
+                      <div className="flex items-center">
+                        <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{selectedRecord.treatment[0].follow_up_date}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            
+            <div className="flex justify-end gap-3 mt-6">
+              <ReactToPrint
+                trigger={() => (
+                  <Button variant="outline">
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print Record
+                  </Button>
+                )}
+                content={() => printRef.current}
+              />
+              <Button onClick={() => setShowModal(false)}>
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -206,9 +261,13 @@ const MedicalRecords = () => {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Medical Records</h1>
-          <Button asChild>
+          <Button asChild disabled={loading}>
             <Link to="/medical-records/new">
-              <FilePlus className="mr-2 h-4 w-4" />
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FilePlus className="mr-2 h-4 w-4" />
+              )}
               Create New Record
             </Link>
           </Button>
@@ -231,12 +290,14 @@ const MedicalRecords = () => {
                   className="pl-8 w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={loading}
                 />
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 <Select
                   value={selectedType}
                   onValueChange={setSelectedType}
+                  disabled={loading}
                 >
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Record type" />
@@ -253,128 +314,144 @@ const MedicalRecords = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setSelectedType("all");
-                  }}
+                  onClick={handleRefresh}
+                  disabled={loading}
                 >
-                  <RefreshCcw className="h-4 w-4" />
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Record Type</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead>Diagnosis</TableHead>
-                    <TableHead>Created By</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="w-[50px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentRecords.map((record) => (
-                    <TableRow 
-                      key={record.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={() => openRecordModal(record)}
-                    >  
-                      <TableCell>
-                        <div className="flex flex-col">
-                          {getRecordTypeIcon("user")}
-                          <span className="font-medium">{record.doctor}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          {getRecordTypeIcon(record.type)}
-                          <span className="ml-1">{record.type}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{record.description}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{record.treatment[0].diagnosis}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{record.doctor}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <CalendarDays className="h-3 w-3 mr-1 text-muted-foreground" />
-                          {record.date}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openRecordModal(record);
-                          }}
-                        >
-                          <span className="sr-only">View details</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="ml-2">Loading medical records...</span>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Doctor</TableHead>
+                        <TableHead>Record Type</TableHead>
+                        <TableHead>Details</TableHead>
+                        <TableHead>Diagnosis</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="w-[50px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentRecords.length > 0 ? (
+                        currentRecords.map((record) => (
+                          <TableRow 
+                            key={record.id}
+                            className="cursor-pointer hover:bg-gray-50"
+                            onClick={() => openRecordModal(record)}
+                          >  
+                            <TableCell>
+                              <div className="flex items-center">
+                                <UserRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <span className="font-medium">{record.doctor}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                {getRecordTypeIcon(record.type)}
+                                <span className="ml-2">{record.type}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="line-clamp-1">
+                                {record.description}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {record.treatment[0]?.diagnosis || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <CalendarDays className="h-3 w-3 mr-1 text-muted-foreground" />
+                                {record.date}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openRecordModal(record);
+                                }}
+                                disabled={loading}
+                              >
+                                <span className="sr-only">View details</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            No medical records found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
 
-            <div className="mt-4">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => {
-                        if (currentPage > 1) paginate(currentPage - 1);
-                      }}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                  {Array.from(
-                    { length: Math.ceil(filteredRecords.length / recordsPerPage) },
-                    (_, i) => (
-                      <PaginationItem key={i + 1}>
-                        <PaginationLink
-                          isActive={currentPage === i + 1}
-                          onClick={() => paginate(i + 1)}
-                        >
-                          {i + 1}
-                        </PaginationLink>
+                <div className="mt-4">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => {
+                            if (currentPage > 1) paginate(currentPage - 1);
+                          }}
+                          className={currentPage === 1 || loading ? "pointer-events-none opacity-50" : ""}
+                        />
                       </PaginationItem>
-                    )
-                  )}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => {
-                        if (
-                          currentPage <
-                          Math.ceil(filteredRecords.length / recordsPerPage)
+                      {Array.from(
+                        { length: Math.ceil(filteredRecords.length / recordsPerPage) },
+                        (_, i) => (
+                          <PaginationItem key={i + 1}>
+                            <PaginationLink
+                              isActive={currentPage === i + 1}
+                              onClick={() => !loading && paginate(i + 1)}
+                            >
+                              {i + 1}
+                            </PaginationLink>
+                          </PaginationItem>
                         )
-                          paginate(currentPage + 1);
-                      }}
-                      className={
-                        currentPage >=
-                        Math.ceil(filteredRecords.length / recordsPerPage)
-                          ? "pointer-events-none opacity-50"
-                          : ""
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
-            </div>
+                      )}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => {
+                            if (
+                              currentPage <
+                              Math.ceil(filteredRecords.length / recordsPerPage)
+                            )
+                              paginate(currentPage + 1);
+                          }}
+                          className={
+                            currentPage >=
+                            Math.ceil(filteredRecords.length / recordsPerPage) || loading
+                              ? "pointer-events-none opacity-50"
+                              : ""
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

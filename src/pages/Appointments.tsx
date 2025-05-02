@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { getAppointments, cancelAppointment, scheduleAppointment } from "@/api/patientApi";
+import { getAppointments, cancelAppointment, scheduleAppointment, getDoctors, AvailableDoctors } from "@/api/patientApi";
 import { Textarea } from "@/components/ui/textarea";
 import { format, addDays, isBefore, isAfter, parseISO } from "date-fns";
 
@@ -133,13 +133,9 @@ const Appointments = () => {
   }, [toast]);
 
   // Mock function to fetch available doctors - replace with actual API call
-  const fetchAvailableDoctors = async (date: string) => {
+  const fetchAvailableDoctors = async (): Promise<AvailableDoctors[]> =>  {
     // In a real app, this would be an API call to get doctors available on the selected date
-    return [
-      { id: '1', name: 'Dr. Smith (Cardiology)' },
-      { id: '2', name: 'Dr. Johnson (General Medicine)' },
-      { id: '3', name: 'Dr. Williams (Pediatrics)' },
-    ];
+    return getDoctors();
   };
 
   // Mock function to check time slot availability - replace with actual API call
@@ -159,7 +155,7 @@ const Appointments = () => {
     }));
     
     // Fetch available doctors for selected date
-    const doctors = await fetchAvailableDoctors(date);
+    const doctors = await fetchAvailableDoctors();
     setAvailableDoctors(doctors);
     
     // Reset time slots
@@ -167,7 +163,7 @@ const Appointments = () => {
   };
 
   const handleTimeChange = async (time: string) => {
-    setAppointmentForm(prev => ({ ...prev, time }));
+    setAppointmentForm(prev => ({ ...prev, time: time }));
   };
 
   const handleScheduleAppointment = async () => {
@@ -180,6 +176,7 @@ const Appointments = () => {
       return;
     }
 
+    
     setScheduling(true);
     try {
       // Check if time slot is still available
@@ -193,7 +190,7 @@ const Appointments = () => {
         return;
       }
 
-      // In a real app, you would call your API here
+      // Schedule appointment
       const newAppointment = {
         date: appointmentForm.date,
         time: appointmentForm.time,
@@ -390,8 +387,8 @@ const Appointments = () => {
                       <SelectValue placeholder="Select a date" />
                     </SelectTrigger>
                     <SelectContent>
-                      {getWeekdayOptions().map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
+                      {getWeekdayOptions().map((option, index) => (
+                        <SelectItem key={option.index} value={option.value}>
                           {option.label}
                         </SelectItem>
                       ))}
@@ -412,8 +409,8 @@ const Appointments = () => {
                       <SelectValue placeholder={appointmentForm.date ? "Select a time" : "Select date first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableTimeSlots.map((time) => (
-                        <SelectItem key={time} value={time}>
+                      {availableTimeSlots.map((time, index) => (
+                        <SelectItem key={index} value={time}>
                           {time}
                         </SelectItem>
                       ))}
@@ -435,8 +432,9 @@ const Appointments = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {availableDoctors.map((doctor) => (
-                        <SelectItem key={doctor.id} value={doctor.name}>
-                          {doctor.name}
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          {doctor.name} - {doctor.speciality}
+                        <span className="text-sm text-gray-500"> ({doctor.email})</span>
                         </SelectItem>
                       ))}
                     </SelectContent>

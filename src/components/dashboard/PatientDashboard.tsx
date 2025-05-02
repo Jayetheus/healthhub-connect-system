@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Calendar, Clock, PlusSquare, FileText, Activity } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { getAppointments, Appointment, getPatientRecords, getPatientRecord, PatientRecord } from "@/api/patientApi";
+import { getAppointments, Appointment, getPatientRecords, Prescription, getPrescriptions, PatientRecord } from "@/api/patientApi";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 
@@ -12,45 +12,19 @@ import { useUser } from "@/contexts/UserContext";
 // Sample health metrics data
 const healthData = [
   { month: "Jan", weight: 162, bloodPressure: 120 },
-  { month: "Feb", weight: 160, bloodPressure: 118 },
-  { month: "Mar", weight: 161, bloodPressure: 118 },
-  { month: "Apr", weight: 158, bloodPressure: 116 },
-  { month: "May", weight: 157, bloodPressure: 115 },
-  { month: "Jun", weight: 157, bloodPressure: 114 },
+  { month: "Feb", weight: 158, bloodPressure: 118 },
+  { month: "Mar", weight: 120, bloodPressure: 118 },
+  { month: "Apr", weight: 168, bloodPressure: 116 },
+  { month: "May", weight: 150, bloodPressure: 115 },
+  { month: "Jun", weight: 143, bloodPressure: 114 },
 ];
-
-// Sample medications
-const medications = [
-  {
-    id: 1,
-    name: "Lisinopril",
-    dosage: "10mg",
-    frequency: "Once daily",
-    refillDate: "June 15, 2025",
-  },
-  {
-    id: 2,
-    name: "Metformin",
-    dosage: "500mg",
-    frequency: "Twice daily",
-    refillDate: "May 30, 2025",
-  },
-  {
-    id: 3,
-    name: "Atorvastatin",
-    dosage: "20mg",
-    frequency: "Once daily at bedtime",
-    refillDate: "July 5, 2025",
-  },
-];
-
-
 
 export function PatientDashboard() {
   const user = useUser()
   const patientName = `${user.name} ${user.surname}`; 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [records, setRecords] =  useState<PatientRecord[]>([])
+  const [prescriptionsData, setPrescriptionsData] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -89,8 +63,43 @@ export function PatientDashboard() {
       }
     };
 
-
-
+    const fetchPrescriptions = async () => {
+          setLoading(true);
+          try {
+           
+    
+            const data = await getPrescriptions();
+            const transformedData = data.map((item) => ({
+              id: item.id,
+              medication: item.medication,
+              dosage: item.dosage,
+              doctor: item.doctor || "Unknown",
+              pharmacist: item.pharmacist || "Unknown",
+              prescription_date: item.prescription_date|| "N/A",
+              status: item.status || "Unknown",
+              instruction: item.instruction || "N/A",
+              date_filled: item.date_filled || "N/A",
+              refills_remaining: item.refills_remaining || 0,
+              date_prescribed: item.date_prescribed   || "N/A",
+              code: item.code || "N/A",
+            }));
+    
+    
+            console.log("Fetched prescriptions:", transformedData);
+            setPrescriptionsData(transformedData);
+          } catch (error) {
+            console.error("Failed to fetch prescriptions:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load prescriptions",
+              variant: "destructive",
+            });
+          } finally {
+            setLoading(false);
+          }
+        };
+    
+    fetchPrescriptions();
     fetchAppointments();
     fetchRecords();
   }, [toast]);
@@ -118,7 +127,7 @@ export function PatientDashboard() {
           </div>
           <div className="flex space-x-2">
             <Button asChild>
-              <Link to="/appointments/new">
+              <Link to="/patient/appointments">
                 <Calendar className="mr-2 h-4 w-4" />
                 Schedule Appointment
               </Link>
@@ -153,9 +162,11 @@ export function PatientDashboard() {
               <PlusSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
+              <div className="text-2xl font-bold">{prescriptionsData.length}</div>
               <p className="text-xs text-muted-foreground">
-                1 refill needed soon
+                {prescriptionsData.map((prescription)=>(
+                  prescription.refills_remaining > 0 ? `${prescription.refills_remaining} refills remaining` : "No refills remaining"
+                ))}
               </p>
             </CardContent>
           </Card>
@@ -169,20 +180,6 @@ export function PatientDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{ loading ? 'Loading...' : records.length}</div>
               <p className="text-xs text-muted-foreground">{ loading ? 'Loading...' : "Total records"}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Health Score
-              </CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">85</div>
-              <p className="text-xs text-green-500">
-                ↑ 5 points from last visit
-              </p>
             </CardContent>
           </Card>
         </div>
@@ -282,7 +279,7 @@ export function PatientDashboard() {
                 )}
                 <div className="flex justify-center">
                   <Button variant="outline" asChild>
-                    <Link to="/appointments/new">Schedule New Appointment</Link>
+                    <Link to="/patient/appointments">Schedule New And View Appointments</Link>
                   </Button>
                 </div>
               </div>
@@ -295,31 +292,30 @@ export function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {medications.map((medication) => (
+                {prescriptionsData.map((medication) => (
                   <div
                     key={medication.id}
                     className="rounded-md border p-3"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium">{medication.name}</p>
+                        <p className="font-medium">{medication.code}</p>
                         <p className="text-sm font-medium">{medication.dosage}</p>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {medication.frequency}
+                        {medication.medication}
                       </p>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">
-                          Refill by: {medication.refillDate}
+                          Refill by: {medication.date_filled}
                         </span>
-                        <Button variant="outline" size="sm">Request Refill</Button>
                       </div>
                     </div>
                   </div>
                 ))}
                 <div className="flex justify-center">
                   <Button variant="outline" asChild>
-                    <Link to="/prescriptions">View All Medications</Link>
+                    <Link to="/patient/prescriptions">View All Medications</Link>
                   </Button>
                 </div>
               </div>
