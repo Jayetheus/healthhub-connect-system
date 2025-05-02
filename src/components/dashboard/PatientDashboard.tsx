@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Calendar, Clock, PlusSquare, FileText, Activity } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { getAppointments, Appointment } from "@/api/patientApi";
+import { getAppointments, Appointment, getPatientRecords, getPatientRecord, PatientRecord } from "@/api/patientApi";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
+
 
 // Sample health metrics data
 const healthData = [
@@ -42,31 +44,13 @@ const medications = [
   },
 ];
 
-// Sample recent records
-const recentRecords = [
-  {
-    id: 1,
-    type: "Lab Results",
-    date: "April 15, 2025",
-    doctor: "Dr. Johnson",
-  },
-  {
-    id: 2,
-    type: "Imaging Results",
-    date: "March 22, 2025",
-    doctor: "Dr. Williams",
-  },
-  {
-    id: 3,
-    type: "Visit Summary",
-    date: "February 10, 2025",
-    doctor: "Dr. Anderson",
-  },
-];
+
 
 export function PatientDashboard() {
-  const patientName = "John Doe"; // Would come from user context in a real app
+  const user = useUser()
+  const patientName = `${user.name} ${user.surname}`; 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [records, setRecords] =  useState<PatientRecord[]>([])
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -88,7 +72,27 @@ export function PatientDashboard() {
       }
     };
 
+    const fetchRecords = async () => {
+      setLoading(true);
+      try {
+        const data = await getPatientRecords();
+        setRecords(data);
+      } catch (error) {
+        console.error("Failed to fetch your records:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your records",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+
+
     fetchAppointments();
+    fetchRecords();
   }, [toast]);
 
   // Function to format appointments for display
@@ -132,11 +136,12 @@ export function PatientDashboard() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{appointments.length}</div>
+              <div className="text-2xl font-bold">{ loading ? "Loading..." : appointments.length}</div>
               <p className="text-xs text-muted-foreground">
-                {appointments.length > 0 
+                
+                { loading ? "Loading appointments..." : appointments.length > 0 
                   ? `Next on ${new Date(appointments[0].start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } ${new Date(appointments[0].start_time).toLocaleDateString()}` 
-                  : "No upcoming appointments"}
+                  : "No upcoming appointments" }
               </p>
             </CardContent>
           </Card>
@@ -162,10 +167,8 @@ export function PatientDashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">
-                3 new since last visit
-              </p>
+              <div className="text-2xl font-bold">{ loading ? 'Loading...' : records.length}</div>
+              <p className="text-xs text-muted-foreground">{ loading ? 'Loading...' : "Total records"}</p>
             </CardContent>
           </Card>
           <Card>
@@ -330,9 +333,9 @@ export function PatientDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentRecords.map((record) => (
+              {records.map((record, index) => (
                 <div
-                  key={record.id}
+                  key={index}
                   className="flex items-center justify-between rounded-md border p-3"
                 >
                   <div>
@@ -348,7 +351,7 @@ export function PatientDashboard() {
               ))}
               <div className="flex justify-center">
                 <Button variant="outline" asChild>
-                  <Link to="/medical-records">View All Records</Link>
+                  <Link to="/patient/medical-records">View All Records</Link>
                 </Button>
               </div>
             </div>

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -10,6 +9,7 @@ import {
   UserRound,
   CalendarDays,
   RefreshCcw,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,14 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -51,152 +43,55 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Sample Medical Records Data
-const medicalRecordsData = [
-  {
-    id: "MR001",
-    patientId: "P001",
-    patientName: "John Smith",
-    recordType: "Progress Note",
-    createdBy: "Dr. Williams",
-    date: "2025-04-10",
-    diagnosisCode: "J03.9",
-    diagnosis: "Acute tonsillitis",
-  },
-  {
-    id: "MR002",
-    patientId: "P002",
-    patientName: "Sarah Johnson",
-    recordType: "Lab Result",
-    createdBy: "Dr. Martinez",
-    date: "2025-04-12",
-    diagnosisCode: "E11.9",
-    diagnosis: "Type 2 diabetes mellitus",
-  },
-  {
-    id: "MR003",
-    patientId: "P003",
-    patientName: "Robert Wilson",
-    recordType: "Consultation",
-    createdBy: "Dr. Williams",
-    date: "2025-04-05",
-    diagnosisCode: "I10",
-    diagnosis: "Essential hypertension",
-  },
-  {
-    id: "MR004",
-    patientId: "P001",
-    patientName: "John Smith",
-    recordType: "Medication",
-    createdBy: "Dr. Johnson",
-    date: "2025-04-10",
-    diagnosisCode: "J03.9",
-    diagnosis: "Acute tonsillitis",
-  },
-  {
-    id: "MR005",
-    patientId: "P004",
-    patientName: "Emily Davis",
-    recordType: "Progress Note",
-    createdBy: "Dr. Johnson",
-    date: "2025-04-08",
-    diagnosisCode: "R51",
-    diagnosis: "Headache",
-  },
-  {
-    id: "MR006",
-    patientId: "P005",
-    patientName: "Michael Brown",
-    recordType: "Imaging",
-    createdBy: "Dr. Martinez",
-    date: "2025-04-01",
-    diagnosisCode: "M54.5",
-    diagnosis: "Low back pain",
-  },
-  {
-    id: "MR007",
-    patientId: "P006",
-    patientName: "Jennifer Lee",
-    recordType: "Lab Result",
-    createdBy: "Dr. Johnson",
-    date: "2025-04-09",
-    diagnosisCode: "D64.9",
-    diagnosis: "Anemia, unspecified",
-  },
-  {
-    id: "MR008",
-    patientId: "P002",
-    patientName: "Sarah Johnson",
-    recordType: "Medication",
-    createdBy: "Dr. Martinez",
-    date: "2025-04-12",
-    diagnosisCode: "E11.9",
-    diagnosis: "Type 2 diabetes mellitus",
-  },
-  {
-    id: "MR009",
-    patientId: "P007",
-    patientName: "David Martinez",
-    recordType: "Consultation",
-    createdBy: "Dr. Williams",
-    date: "2025-03-28",
-    diagnosisCode: "F41.9",
-    diagnosis: "Anxiety disorder, unspecified",
-  },
-  {
-    id: "MR010",
-    patientId: "P008",
-    patientName: "Lisa Anderson",
-    recordType: "Progress Note",
-    createdBy: "Dr. Williams",
-    date: "2025-04-07",
-    diagnosisCode: "J45.909",
-    diagnosis: "Unspecified asthma, uncomplicated",
-  },
-  {
-    id: "MR011",
-    patientId: "P009",
-    patientName: "James Taylor",
-    recordType: "Imaging",
-    createdBy: "Dr. Martinez",
-    date: "2025-04-03",
-    diagnosisCode: "S82.001A",
-    diagnosis: "Fracture of patella",
-  },
-  {
-    id: "MR012",
-    patientId: "P010",
-    patientName: "Patricia White",
-    recordType: "Lab Result",
-    createdBy: "Dr. Johnson",
-    date: "2025-03-25",
-    diagnosisCode: "E78.5",
-    diagnosis: "Hyperlipidemia, unspecified",
-  },
-];
+import { useToast } from "@/hooks/use-toast";
+import { getPatientRecords } from "@/api/patientApi";
 
 const MedicalRecords = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const recordsPerPage = 8;
+  const { toast } = useToast();
+  const [medicalRecordsData, setMedicalRecordsData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Filter medical records based on search term and type
+  useEffect(() => {
+    const fetchRecords = async () => {
+      setLoading(true);
+      try {
+        const data = await getPatientRecords();
+        setMedicalRecordsData(data);
+      } catch (error) {
+        console.error("Failed to fetch your records:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your records",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecords();
+  }, [toast]);
+
   const filteredRecords = medicalRecordsData.filter((record) => {
     const matchesSearch =
-      record.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.diagnosisCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.treatment.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.id.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType =
-      selectedType === "all" || record.recordType === selectedType;
+      selectedType === "all" || record.type === selectedType;
 
     return matchesSearch && matchesType;
   });
 
-  // Get current records
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
   const currentRecords = filteredRecords.slice(
@@ -204,19 +99,17 @@ const MedicalRecords = () => {
     indexOfLastRecord
   );
 
-  // Change page
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-  // Get Record Type Icon
   const getRecordTypeIcon = (type: string) => {
     switch (type) {
-      case "Progress Note":
+      case "Note":
         return <FileText className="h-4 w-4 text-blue-500" />;
       case "Lab Result":
         return <FileText className="h-4 w-4 text-purple-500" />;
-      case "Consultation":
+      case "Examination":
         return <FileText className="h-4 w-4 text-green-500" />;
-      case "Medication":
+      case "Procedure":
         return <FileText className="h-4 w-4 text-red-500" />;
       case "Imaging":
         return <FileText className="h-4 w-4 text-orange-500" />;
@@ -225,8 +118,91 @@ const MedicalRecords = () => {
     }
   };
 
+  const openRecordModal = (record) => {
+    setSelectedRecord(record);
+    setShowModal(true);
+  };
+
   return (
     <div className="container py-8">
+      {/* Modal */}
+      {showModal && selectedRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold">{selectedRecord.type} Details</h2>
+              <button 
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-500">Doctor</h3>
+                  <p>{selectedRecord.doctor}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Record Type</h3>
+                  <div className="flex items-center">
+                    {getRecordTypeIcon(selectedRecord.type)}
+                    <span className="ml-2">{selectedRecord.type}</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Description</h3>
+                  <p>{selectedRecord.description}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-500">Diagnosis</h3>
+                  <p>{selectedRecord.treatment[0].diagnosis}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Date</h3>
+                  <div className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{selectedRecord.date}</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Details</h3>
+                  <p>{selectedRecord.details || "No additional details available"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-500">Treatment Description</h3>
+                  <p>{selectedRecord.treatment[0].description}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Treatment Date</h3>
+                  <div className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{selectedRecord.treatment[0].date}</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-500">Treatment Follow Up Date</h3>
+                  <div className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <span>{selectedRecord.treatment[0].follow_up_date}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Medical Records</h1>
@@ -267,10 +243,10 @@ const MedicalRecords = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="Progress Note">Progress Notes</SelectItem>
+                    <SelectItem value="Note">Notes</SelectItem>
                     <SelectItem value="Lab Result">Lab Results</SelectItem>
-                    <SelectItem value="Consultation">Consultations</SelectItem>
-                    <SelectItem value="Medication">Medications</SelectItem>
+                    <SelectItem value="Procedure">Procedure</SelectItem>
+                    <SelectItem value="Examination">Examination</SelectItem>
                     <SelectItem value="Imaging">Imaging</SelectItem>
                   </SelectContent>
                 </Select>
@@ -291,45 +267,45 @@ const MedicalRecords = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Record ID</TableHead>
-                    <TableHead>Patient</TableHead>
+                    <TableHead>Doctor</TableHead>
                     <TableHead>Record Type</TableHead>
+                    <TableHead>Details</TableHead>
                     <TableHead>Diagnosis</TableHead>
                     <TableHead>Created By</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
+                    <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {currentRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">
-                        {record.id}
-                      </TableCell>
+                    <TableRow 
+                      key={record.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => openRecordModal(record)}
+                    >  
                       <TableCell>
-                        <Link
-                          to={`/patients/${record.patientId}`}
-                          className="hover:underline text-health-700 dark:text-health-400 flex items-center"
-                        >
-                          <UserRound className="h-3 w-3 mr-1" />
-                          {record.patientName}
-                        </Link>
+                        <div className="flex flex-col">
+                          {getRecordTypeIcon("user")}
+                          <span className="font-medium">{record.doctor}</span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          {getRecordTypeIcon(record.recordType)}
-                          <span className="ml-1">{record.recordType}</span>
+                          {getRecordTypeIcon(record.type)}
+                          <span className="ml-1">{record.type}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium">{record.diagnosis}</span>
-                          <span className="text-xs text-muted-foreground">
-                            Code: {record.diagnosisCode}
-                          </span>
+                          <span className="font-medium">{record.description}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{record.createdBy}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{record.treatment[0].diagnosis}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{record.doctor}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <CalendarDays className="h-3 w-3 mr-1 text-muted-foreground" />
@@ -337,48 +313,17 @@ const MedicalRecords = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                              <Link to={`/medical-records/${record.id}`}>
-                                View Details
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to={`/medical-records/${record.id}/edit`}>
-                                Edit Record
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                              <Link to={`/patients/${record.patientId}`}>
-                                View Patient Profile
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to={`/medical-records/${record.patientId}/history`}>
-                                Complete Medical History
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                              Generate Report
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              Print Record
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRecordModal(record);
+                          }}
+                        >
+                          <span className="sr-only">View details</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

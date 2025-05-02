@@ -154,14 +154,10 @@ export function Sidebar({ role = "admin" }: SidebarProps) {
 
   const bottomNavItems = [
     {
-      to: getRoutePath("/settings"),
-      icon: <Settings className="h-5 w-5" />,
-      label: "Settings",
-    },
-    {
       to: "/login",
       icon: <LogOut className="h-5 w-5" />,
       label: "Logout",
+      logout: ()=>{ localStorage.clear(); },
     },
   ];
 
@@ -207,6 +203,7 @@ export function Sidebar({ role = "admin" }: SidebarProps) {
                 asChild
                 isActive={isActive(item.to)}
                 tooltip={item.label}
+                onClick={item.logout}
               >
                 <Link to={item.to}>
                   {item.icon}

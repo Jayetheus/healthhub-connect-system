@@ -45,13 +45,14 @@ const Login = () => {
     try {
       // Call the login API with role included
       const response = await login({ username: email, password, role });
-      console.log(response.access_token)
       // Update the global role state
       setGlobalRole(role);
-      
+      setUserName(response.name);
+      setUserSurname(response.surname);
+
       toast({
         title: "Logged in successfully",
-        description: `Welcome to HealthHub EHR System as ${role}`,
+        description: `Welcome to HealthHub EHR System ${role + " "+ response.name + " " + response.surname}`,
       });
       
       // Redirect based on role

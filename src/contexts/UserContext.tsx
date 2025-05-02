@@ -1,8 +1,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-export type Name = string;
-export type Surname = string;
+
 export type Role = "admin" | "doctor" | "pharmacist" | "patient";
 
 interface UserContextType {
@@ -15,27 +14,26 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  // Try to get the role from localStorage on initial load
-  const [name, setNameState] = useState<Name>(() => {
-    const savedName = localStorage.getItem("user_name");
-    return (savedName as Name) || "John";
+  const [name, setNameState] = useState<string>(() => {
+    const savedName = localStorage.getItem("name");
+    return (savedName as string) || "John";
   });
 
   // Update role handler that also saves to localStorage
-  const setName = (newName: Name) => {
+  const setName = (newName: string) => {
     setNameState(newName);
-    localStorage.setItem("user_name", newName);
+    localStorage.setItem("name", newName);
   };
 
-  const [surname, setSurnameState] = useState<Name>(() => {
-    const savedSurname = localStorage.getItem("user_surname");
-    return (savedSurname as Surname) || "Doe";
+  const [surname, setSurnameState] = useState<string>(() => {
+    const savedSurname = localStorage.getItem("surname");
+    return (savedSurname as string) || "Doe";
   });
 
   // Update role handler that also saves to localStorage
-  const setSurname = (newSurname: Surname) => {
+  const setSurname = (newSurname: string) => {
     setSurnameState(newSurname);
-    localStorage.setItem("user_surname", newSurname);
+    localStorage.setItem("surname", newSurname);
   };
 
   return (
