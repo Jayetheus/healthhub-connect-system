@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import ReactToPrint from "react-to-print";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -47,7 +48,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getPatientRecords, PatientRecord } from "@/api/patientApi";
-import ReactToPrint from "react-to-print";
+import { useUser } from "@/contexts/UserContext";
+
 
 
 const MedicalRecords = () => {
@@ -60,6 +62,7 @@ const MedicalRecords = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const recordsPerPage = 8;
+  const { name, surname } = useUser();
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -122,7 +125,7 @@ const MedicalRecords = () => {
     }
   };
 
-  const openRecordModal = (record: MedicalRecord) => {
+  const openRecordModal = (record: PatientRecord) => {
     setSelectedRecord(record);
     setShowModal(true);
   };
@@ -169,7 +172,7 @@ const MedicalRecords = () => {
                 <div className="flex justify-between mt-4">
                   <div>
                     <p className="font-semibold">Patient:</p>
-                    <p>John Doe</p> {/* Replace with actual patient name */}
+                    <p>{name +  " " + surname}</p> {/* Replace with actual patient name */}
                   </div>
                   <div>
                     <p className="font-semibold">Date:</p>
@@ -241,15 +244,6 @@ const MedicalRecords = () => {
             </div>
             
             <div className="flex justify-end gap-3 mt-6">
-              <ReactToPrint
-                trigger={() => (
-                  <Button variant="outline">
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Record
-                  </Button>
-                )}
-                content={() => printRef.current}
-              />
               <Button onClick={() => setShowModal(false)}>
                 Close
               </Button>
@@ -261,16 +255,6 @@ const MedicalRecords = () => {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Medical Records</h1>
-          <Button asChild disabled={loading}>
-            <Link to="/medical-records/new">
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FilePlus className="mr-2 h-4 w-4" />
-              )}
-              Create New Record
-            </Link>
-          </Button>
         </div>
 
         <Card>

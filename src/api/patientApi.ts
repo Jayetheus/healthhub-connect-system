@@ -1,5 +1,7 @@
 
 import axios from 'axios';
+import { useRole } from '@/contexts/RoleContext';
+
 
 // Configure axios with base URL
 const api = axios.create({
@@ -11,7 +13,7 @@ api.interceptors.request.use(config => {
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
+  } 
   return config;
 });
 
@@ -105,8 +107,6 @@ export const login = async (credentials: LoginCredentials): Promise<LoginRespons
     throw new Error('Login failed');
   }
 };
-
-
 
 // GET appointments API endpoint
 export const getAppointments = async (): Promise<Appointment[]> => {
@@ -232,8 +232,6 @@ export const getDoctors = async (): Promise<AvailableDoctors[]> => {
   }
 };
 
-
-
 // PUT appointment cancelled
 export const cancelAppointment = async (id: number): Promise<void> => {
   try{
@@ -257,7 +255,6 @@ export const cancelAppointment = async (id: number): Promise<void> => {
 
 }
 
-
 // POST new appointment
 export const scheduleAppointment = async(appointmentDetails) =>{
   try {
@@ -277,3 +274,33 @@ export const scheduleAppointment = async(appointmentDetails) =>{
   }
 }
 
+export const getUserAccounts = async () => {
+  try {
+    const response = await api.get('/get_user_accounts');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch user accounts:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch user accounts');
+  }
+}
+
+
+async function logginManager(){
+  const token = localStorage.getItem("access_token" )
+  if(token){
+    const response = await  axios.post("http://localhost:5000/api", {token:  token})
+    
+    if(response.status == 401){
+      console.log("Not a valid token please login again")
+      localStorage.clear();
+    }
+  }
+}

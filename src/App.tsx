@@ -12,9 +12,11 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
-import Appointments from "./pages/Appointments";
-import MedicalRecords from "./pages/MedicalRecords";
-import Prescriptions from "./pages/Prescriptions";
+import Appointments from "./pages/patient/Appointments";
+import MedicalRecords from "./pages/patient/MedicalRecords";
+import Prescriptions from "./pages/patient/Prescriptions";
+import DeleteUser from "./pages/admin/DeleteUser";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +24,18 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { role } = useRole();
   
+  useEffect(() => {
+    // Check if the role is set in localStorage and update context if necessary
+    const storedRole = localStorage.getItem("user_role");
+    if (storedRole && storedRole !== role) {
+      localStorage.setItem("user_role", storedRole);
+    } 
+
+    if (!role){
+      localStorage.clear();
+    }
+  }, [role])
+
   if (!role || !allowedRoles.includes(role)) {
     return <Navigate to="/login" replace />;
   }
@@ -53,7 +67,7 @@ const App = () => (
             {/* Admin Routes */}
             <Route element={<RoleBasedLayout allowedRoles={["admin"]} />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
-              <Route path="/admin/patients" element={<Patients />} />
+              <Route path="/admin/delete" element={<DeleteUser />} />
               <Route path="/admin/appointments" element={<Appointments />} />
               <Route path="/admin/medical-records" element={<MedicalRecords />} />
               <Route path="/admin/prescriptions" element={<Prescriptions />} />
