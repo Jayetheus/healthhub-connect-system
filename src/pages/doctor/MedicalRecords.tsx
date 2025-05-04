@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import ReactToPrint from "react-to-print";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -12,7 +13,6 @@ import {
   TestTube,
   Notebook,
   Stethoscope,
-  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getPatientRecords, PatientRecord } from "@/api/patientApi";
 import { useUser } from "@/contexts/UserContext";
 
+
+
 const MedicalRecords = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
@@ -58,19 +60,19 @@ const MedicalRecords = () => {
   const [showModal, setShowModal] = useState(false);
   const [medicalRecordsData, setMedicalRecordsData] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [printing, setPrinting] = useState(false)
   const { toast } = useToast();
   const recordsPerPage = 8;
   const { name, surname } = useUser();
   const printRef = useRef<HTMLDivElement>(null);
-  const pagePrintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchRecords = async () => {
       setLoading(true);
       try {
-        const data = await getPatientRecords("patient");
-        setMedicalRecordsData(data);
+        const data = await getPatientRecords("doctor");
+        setMedicalRecordsData(data)
+        console.log(data)
       } catch (error) {
         console.error("Failed to fetch your records:", error);
         toast({
@@ -88,6 +90,7 @@ const MedicalRecords = () => {
 
   const filteredRecords = medicalRecordsData.filter((record) => {
     const matchesSearch =
+      record.patient_record_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.treatment[0].diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,7 +136,7 @@ const MedicalRecords = () => {
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      const data = await getPatientRecords("patient");
+      const data = await getPatientRecords("doctor");
       setMedicalRecordsData(data);
       setSearchTerm("");
       setSelectedType("all");
@@ -150,55 +153,50 @@ const MedicalRecords = () => {
     }
   };
 
-  const handlePrintRecord = () => {
-    if (!printRef.current || !selectedRecord) return;
-    
-    setPrinting(true);
-    
-    const printWindow = window.open('', '', 'width=800,height=600');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Medical Record - ${selectedRecord.type}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              h1, h2, h3 { color: #333; }
-              .header { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-              .section { margin-bottom: 15px; }
-              .label { font-weight: bold; color: #555; }
-              @media print {
-                body { -webkit-print-color-adjust: exact; }
-              }
-            </style>
-          </head>
-          <body>
-            ${printRef.current.innerHTML}
-            <script>
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 200);
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
-    setPrinting(false);
-  };
+  const handlePrint = () => {
+    setPrinting(true)
 
-  const handlePrintPage = () => {
-    setPrinting(true);
-    setTimeout(() => {
-      window.print();
-      setPrinting(false);
-    }, 200);
+    if (printRef.current) {
+      const printWindow = window.open('', '', 'width=800,height=600');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Medical Record - ${selectedRecord?.type}</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #333; }
+                .section { margin-bottom: 20px; }
+                .label { font-weight: bold; color: #555; }
+                .header { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                @media print {
+                  body { -webkit-print-color-adjust: exact; }
+                  button { display: none !important; }
+                }
+              </style>
+            </head>
+            <body>
+              ${printRef.current.innerHTML}
+              <script>
+                window.onload = function() {
+                  setTimeout(function() {
+                    window.print();
+                    window.close();
+                  }, 200);
+                }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        setPrinting(false)
+      }
+    }
   };
 
   return (
-    <div className="container py-8" ref={pagePrintRef}>
+    <div className="container py-8">
       {/* Print Modal */}
       {showModal && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -219,7 +217,7 @@ const MedicalRecords = () => {
                 <div className="flex justify-between mt-4">
                   <div>
                     <p className="font-semibold">Patient:</p>
-                    <p>{name + " " + surname}</p>
+                    <p>{selectedRecord.name +  " " + selectedRecord.surname}</p> {/* Replace with actual patient name */}
                   </div>
                   <div>
                     <p className="font-semibold">Date:</p>
@@ -230,6 +228,10 @@ const MedicalRecords = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
+                <div>
+                    <h3 className="font-semibold text-gray-500">Patient ID</h3>
+                    <p>{selectedRecord.patient_record_id}</p>
+                  </div>
                   <div>
                     <h3 className="font-semibold text-gray-500">Doctor</h3>
                     <p>{selectedRecord.doctor}</p>
@@ -291,16 +293,26 @@ const MedicalRecords = () => {
             </div>
             
             <div className="flex justify-end gap-3 mt-6">
-              <Button onClick={handlePrintRecord} disabled={printing}>
-                {printing ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Printer className="h-4 w-4 mr-2" />
-                )}
-                Print Record
-              </Button>
+            <Button onClick={handlePrint}>
+              { printing ? (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin"/>
+                  <span>Printing...</span>
+                </>
+              ) : (
+                <p>Print Record</p>
+              )
+              }
+            </Button>
               <Button onClick={() => setShowModal(false)}>
-                Close
+              { printing ? (
+                <>
+                  <Loader2 className="h-8 w-8 animate-spin"/>
+                </>
+              ) : (
+                <p>Cancel</p>
+              )
+              } 
               </Button>
             </div>
           </div>
@@ -310,30 +322,17 @@ const MedicalRecords = () => {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Medical Records</h1>
-          <Button 
-            onClick={handlePrintPage}
-            variant="outline"
-            disabled={printing}
-            className="print:hidden"
-          >
-            {printing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Printer className="h-4 w-4 mr-2" />
-            )}
-            Print Page
-          </Button>
         </div>
 
-        <Card className="print:border-none print:shadow-none">
-          <CardHeader className="print:hidden">
+        <Card>
+          <CardHeader>
             <CardTitle>Medical Records Database</CardTitle>
             <CardDescription>
               View and manage patient medical records
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4 sm:flex-row items-center justify-between mb-6 print:hidden">
+            <div className="flex flex-col gap-4 sm:flex-row items-center justify-between mb-6">
               <div className="relative w-full max-w-sm">
                 <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -385,25 +384,34 @@ const MedicalRecords = () => {
               </div>
             ) : (
               <>
-                <div className="rounded-md border print:border-0">
+                <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                      <TableHead>Patient ID</TableHead>
                         <TableHead>Doctor</TableHead>
                         <TableHead>Record Type</TableHead>
                         <TableHead>Details</TableHead>
                         <TableHead>Diagnosis</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead className="w-[50px] print:hidden">Actions</TableHead>
+                        <TableHead className="w-[50px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {currentRecords.length > 0 ? (
-                        currentRecords.map((record) => (
+                        currentRecords.map((record, index) => (
                           <TableRow 
-                            key={record.id}
-                            className="cursor-pointer hover:bg-gray-50 print:hover:bg-white"
+                            key={index}
+                            className="cursor-pointer hover:bg-gray-50"
+                            onClick={() => openRecordModal(record)}
                           >  
+
+                            <TableCell>
+                              <div className="flex items-center">
+                                <UserRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <span className="font-medium">{record.patient_record_id}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center">
                                 <UserRound className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -430,7 +438,7 @@ const MedicalRecords = () => {
                                 {record.date}
                               </div>
                             </TableCell>
-                            <TableCell className="print:hidden">
+                            <TableCell>
                               <Button
                                 variant="ghost"
                                 className="h-8 w-8 p-0"
@@ -457,7 +465,7 @@ const MedicalRecords = () => {
                   </Table>
                 </div>
 
-                <div className="mt-4 print:hidden">
+                <div className="mt-4">
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
@@ -506,42 +514,6 @@ const MedicalRecords = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Print styles */}
-      <style>
-        {`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .container, .container * {
-              visibility: visible;
-            }
-            .container {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              padding: 0;
-              margin: 0;
-            }
-            .no-print, .print-hidden, .print\\:hidden {
-              display: none !important;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-            }
-            th {
-              background-color: #f2f2f2;
-            }
-          }
-        `}
-      </style>
     </div>
   );
 };

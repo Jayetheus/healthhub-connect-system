@@ -58,7 +58,7 @@ export function PatientDashboard() {
 
       try {
         setLoading(prev => ({ ...prev, records: true }));
-        const recordsData = await getPatientRecords();
+        const recordsData = await getPatientRecords("patient");
         setRecords(recordsData);
       } catch (error) {
         console.error("Failed to fetch your records:", error);
@@ -87,6 +87,7 @@ export function PatientDashboard() {
           refills_remaining: item.refills_remaining || 0,
           date_prescribed: item.date_prescribed || "N/A",
           code: item.code || "N/A",
+          patient: item.patient || "Unknown", // Add the missing 'patient' property
         }));
         setPrescriptionsData(transformedData);
       } catch (error) {

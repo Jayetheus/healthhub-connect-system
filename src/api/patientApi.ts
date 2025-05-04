@@ -17,6 +17,20 @@ api.interceptors.request.use(config => {
   return config;
 });
 
+export interface Patient{
+  patient_id: string;
+  login_id: string;
+  fname: string;
+  lname: string;
+  id_number: string;
+  sex: string;
+  date_of_birth: string;
+  address: string;
+  phone: string;
+  email: string;
+  blood_type: string;
+}
+
 export interface AvailableDoctors {
   id: number;
   name: string;
@@ -59,10 +73,11 @@ export interface AppointmentResponse {
 }
 
 export interface Prescription {
-  id: number;
+  id: string;
   code: string;
   medication: string;
   dosage: string;
+  patient: string;
   doctor: string;
   pharmacist: string;
   prescription_date: string;
@@ -73,8 +88,18 @@ export interface Prescription {
   date_prescribed: string;
 }
 
-export interface PatientRecord {
+export interface Medication {
   id: number;
+  name: string;
+  ingredients: string;
+  in_stock: number;
+}
+
+export interface PatientRecord {
+  patient_record_id: string
+  id: string;
+  name: string;
+  surname: string;
   type: string;
   description: string;
   details: string;
@@ -165,6 +190,64 @@ export const getPrescription = async (id: number): Promise<Prescription> => {
   }
 };
 
+// GET prescriptions for pharmacist API endpoint
+export const getPharmacistPrescriptions = async (): Promise<Prescription[]> => {
+  try {
+    const response = await api.get<Prescription[]>('/pharmacist/get_prescriptions');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch prescriptions:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch prescriptions');
+  }
+}
+
+
+//PUT prescriptions API endpoint 
+export const issuePrescription = async (id : string) => {
+  try {
+    const response = await api.put<Prescription>(`/issue_prescription/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to issue prescription:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to issue prescription');
+  }
+}
+
+//GET medications API endpoint
+export const getMedications = async (): Promise<Medication[]> => {
+  try {
+    const response = await api.get<Medication[]>('/get_medications');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch medications:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch medications');
+  }
+}
+
 
 // GET patient record API endpoint
 export const getPatientRecord = async (): Promise<PatientRecord> => {
@@ -186,9 +269,9 @@ export const getPatientRecord = async (): Promise<PatientRecord> => {
 };
 
 // GET patient record API endpoint
-export const getPatientRecords = async (): Promise<PatientRecord[]> => {
+export const getPatientRecords = async (role: string): Promise<PatientRecord[]> => {
   try {
-    const response = await api.get<PatientRecord[]>('/get_patient_records');
+    const response = await api.get<PatientRecord[]>(`/get_patient_records/${role}`);
     return response.data;
   } catch (error) {
     console.error('Failed to fetch patient record:', error);
@@ -274,6 +357,7 @@ export const scheduleAppointment = async(appointmentDetails) =>{
   }
 }
 
+// GET user accounts API endpoint
 export const getUserAccounts = async () => {
   try {
     const response = await api.get('/get_user_accounts');
@@ -292,6 +376,137 @@ export const getUserAccounts = async () => {
   }
 }
 
+// GET user account API endpoint
+export const getUserAccount = async (userId: string, role: string) => {
+  try {
+    const response = await api.get(`/get_user_account/${userId}`, { params: { role } });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch user account');
+  }
+}
+
+//DELETE user account API endpoint
+export const deleteUserAccount = async (userId: string, role: string) => {
+  try {
+    const response = await api.delete(`/delete_user/${userId}`, { data: { role } });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to delete user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to delete user account');
+  }
+}
+
+//ADD user account API endpoint
+export const addUserAccount = async (userDetails: any) => {
+  try {
+    const response = await api.post('/add_user', userDetails);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to add user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to add user account');
+  }
+}
+
+//UPDATE user account API endpoint
+export const updateUserAccount = async (userId: string, userDetails: any) => {
+  try {
+    console.log(userId,userDetails)
+    const response = await api.put(`/update_user/${userId}`, userDetails);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to update user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to update user account');
+  }
+}
+
+export const createPatientRecord = async  (record: any) => {
+  try {
+    const response = await api.post('/create_record',record);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to create user record:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to Create a record for the user');
+  }
+}
+
+export const getPatientById = async (id: string) =>{
+  try {
+    const response = await api.get(`/get_patient/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch user account');
+  }
+}
+
+
+export const getPatients = async () => {
+  try {
+    const response = await api.get(`/get_patients`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch user account:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 401) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      if (error.response?.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+    }
+    throw new Error('Failed to fetch user account');
+  }
+}
 
 async function logginManager(){
   const token = localStorage.getItem("access_token" )

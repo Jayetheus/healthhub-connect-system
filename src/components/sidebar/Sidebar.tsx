@@ -1,16 +1,14 @@
 
 import { Link, useLocation } from "react-router-dom";
 import {
-  Landmark,
   UserRound,
   Calendar,
   FileText,
   PlusSquare,
   BarChart,
-  Settings,
   LogOut,
-  Users,
   Pill,
+  UserMinus, UserPlus, UserPen,
   Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -49,29 +47,19 @@ export function Sidebar({ role = "admin" }: SidebarProps) {
         label: "Dashboard",
       },
       {
-        to: getRoutePath("/patients"),
-        icon: <UserRound className="h-5 w-5" />,
-        label: "Patients",
+        to: getRoutePath("/add-user"),
+        icon: <UserPlus className="h-5 w-5" />,
+        label: "Add User Account",
       },
       {
-        to: getRoutePath("/appointments"),
-        icon: <Calendar className="h-5 w-5" />,
-        label: "Appointments",
+        to: getRoutePath("/delete-user"),
+        icon: <UserMinus className="h-5 w-5" />,
+        label: "Delete User Account",
       },
       {
-        to: getRoutePath("/medical-records"),
-        icon: <FileText className="h-5 w-5" />,
-        label: "Medical Records",
-      },
-      {
-        to: getRoutePath("/prescriptions"),
-        icon: <PlusSquare className="h-5 w-5" />,
-        label: "Prescriptions",
-      },
-      {
-        to: getRoutePath("/users"),
-        icon: <Users className="h-5 w-5" />,
-        label: "User Management",
+        to: getRoutePath("/edit-user"),
+        icon: <UserPen className="h-5 w-5" />,
+        label: "Edit User Account",
       },
     ],
     doctor: [
@@ -96,9 +84,9 @@ export function Sidebar({ role = "admin" }: SidebarProps) {
         label: "Medical Records",
       },
       {
-        to: getRoutePath("/prescriptions"),
+        to: getRoutePath("/add-record"),
         icon: <PlusSquare className="h-5 w-5" />,
-        label: "Prescriptions",
+        label: "Add Patient Record",
       },
     ],
     pharmacist: [
@@ -106,26 +94,6 @@ export function Sidebar({ role = "admin" }: SidebarProps) {
         to: getRoutePath("/dashboard"),
         icon: <BarChart className="h-5 w-5" />,
         label: "Dashboard",
-      },
-      {
-        to: getRoutePath("/prescriptions"),
-        icon: <Pill className="h-5 w-5" />,
-        label: "Prescriptions",
-      },
-      {
-        to: getRoutePath("/inventory"),
-        icon: <Pill className="h-5 w-5" />,
-        label: "Inventory",
-      },
-      {
-        to: getRoutePath("/patients"),
-        icon: <UserRound className="h-5 w-5" />,
-        label: "Patients",
-      },
-      {
-        to: getRoutePath("/consultations"),
-        icon: <Calendar className="h-5 w-5" />,
-        label: "Consultations",
       },
     ],
     patient: [

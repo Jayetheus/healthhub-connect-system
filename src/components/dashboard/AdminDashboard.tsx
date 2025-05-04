@@ -1,21 +1,46 @@
+//WORK ON THE FILTER IMPLEMENTATION
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Users, PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { Users, PlusCircle,  Loader2,RefreshCwIcon, Search, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getUserAccounts } from "@/api/patientApi";
+import { toast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: string;
+  created_at?: string;
+  is_active?: boolean;
+  phone?: string;
 }
 
 export function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -23,7 +48,13 @@ export function AdminDashboard() {
         const response = await getUserAccounts();
         setUsers(response);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -32,40 +63,46 @@ export function AdminDashboard() {
     fetchUsers();
   }, []);
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      // Replace with your actual API endpoint
-      const response = await fetch(`/api/users/${userId}`, {
-        method: "DELETE",
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to delete user");
-      }
-      
-      // Remove the user from local state
-      setUsers(users.filter(user => user.id !== userId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user");
-    }
+  
+    const filteredUsers = users.filter(user => {
+      // Search term filter (name)
+      const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Role filter
+      const matchesRole = 
+        roleFilter === "all" || 
+        user.role.toLowerCase() === roleFilter.toLowerCase();
+
+      // Status filter
+      const matchesStatus = 
+        statusFilter === "all" ||
+        (statusFilter === "active" && user.is_active) ||
+        (statusFilter === "inactive" && !user.is_active);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+    
+  const handleUserClick = (user: User) => {
+    setSelectedUser(user);
+    setIsModalOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="container py-8">
-        <div className="flex justify-center">
-          <p>Loading users...</p>
-        </div>
-      </div>
-    );
-  }
+  const resetFilters = () => {
+    setSearchTerm("");
+    setRoleFilter("all");
+    setStatusFilter("all");
+  };
 
   if (error) {
     return (
-      <div className="container py-8">
+      <div className="container py-8 flex flex-col items-center justify-center">
         <div className="flex justify-center">
-          <p className="text-red-500">Error: {error}</p>
+          <p className="text-red-500">Error: {error}</p><br/>
+          
         </div>
+        <Button variant="outline" onClick={()=> window.location.reload()} className="mt-4 flex-col items-center justify-center">
+          <span>Refresh</span>
+        </Button>
       </div>
     );
   }
@@ -75,92 +112,79 @@ export function AdminDashboard() {
       <div className="flex flex-col space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">User Account Management</h1>
-          <div className="flex space-x-2">
-            <Button asChild>
-              <Link to="/users/add">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add User Account
-              </Link>
-            </Button>
-          </div>
         </div>
 
-        {/* User Management Cards */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Add User Account Card */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-4">
-                <div className="rounded-lg bg-blue-100 p-3">
-                  <PlusCircle className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle>Add User</CardTitle>
-                  <CardDescription>Create new user accounts</CardDescription>
-                </div>
+        {/* Filter Controls */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              <span>Filter Users</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or email..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full">
-                <Link to="/users/add">
-                  Go to Add User
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+              
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="doctor">Doctor</SelectItem>
+                  <SelectItem value="patient">Patient</SelectItem>
+                  <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                </SelectContent>
+              </Select>
 
-          {/* Edit User Account Card */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-4">
-                <div className="rounded-lg bg-orange-100 p-3">
-                  <Pencil className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <CardTitle>Edit User</CardTitle>
-                  <CardDescription>Modify existing accounts</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full">
-                <Link to="/admin/edit">
-                  Go to Edit User
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
 
-          {/* Delete User Account Card */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-4">
-                <div className="rounded-lg bg-red-100 p-3">
-                  <Trash2 className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <CardTitle>Delete User</CardTitle>
-                  <CardDescription>Remove user accounts</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant="destructive" className="w-full">
-                <Link to="/admin/delete">
-                  Go to Delete User
-                </Link>
+              <Button 
+                variant="outline" 
+                onClick={resetFilters}
+                className="w-full md:w-auto"
+              >
+                Reset Filters
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Users Table */}
         <Card>
           <CardHeader>
-            <CardTitle>User Accounts</CardTitle>
-            <CardDescription>
-              List of all system users with their roles and names
-            </CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>User Accounts</CardTitle>
+                <CardDescription>
+                  Showing {filteredUsers.length} of {users.length} users
+                </CardDescription>
+              </div>
+              {filteredUsers.length === 0 && !loading && (
+                <Button variant="ghost" onClick={resetFilters}>
+                  Clear filters
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -174,60 +198,134 @@ export function AdminDashboard() {
                       Email
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Role
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
+                      Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-gray-500" />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                          </div>
+                {loading ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center">
+                        <div className="flex justify-center items-center">
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                          <span className="ml-2">Loading user accounts...</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.role}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="mr-2"
-                          asChild
-                        >
-                          <Link to={`/users/edit/${user.id}`}>
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-900"
-                          onClick={() => handleDeleteUser(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                    </tr>
+                  </tbody>
+                ) : filteredUsers.length === 0 ? (
+                  <tbody>
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-gray-500">
+                        No users found matching your filters
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                  </tbody>
+                ) : (
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredUsers.map((user, index) =>  (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div 
+                            className="flex items-center cursor-pointer hover:text-blue-600"
+                            onClick={() => handleUserClick(user)}
+                          >
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <Users className="h-5 w-5 text-gray-500" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900 hover:underline">
+                                {user.name}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.phone || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.role}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.is_active 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}           
               </table>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* User Details Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle className="flex justify-between items-center">
+              <span>User Details</span>
+            </DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Name</p>
+                <p className="text-sm">{selectedUser.name}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">ID</p>
+                <p className="text-sm">{selectedUser.id}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Role</p>
+                <p className="text-sm">{selectedUser.role}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Email</p>
+                <p className="text-sm">{selectedUser.email}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Phone</p>
+                <p className="text-sm">{selectedUser.phone || 'N/A'}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Account Created</p>
+                <p className="text-sm">
+                  {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">Status</p>
+                <p className="text-sm">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    selectedUser.is_active 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {selectedUser.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
